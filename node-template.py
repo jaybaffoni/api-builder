@@ -1,3 +1,12 @@
+#Node Template
+#Author: James Baffoni
+#Date: 2018
+
+#Script to create a basic API in node.js using the express generator as a starting point
+#Assumes python and npm are already installed
+#Place this file in desired project location (it will create project folder)
+#Run with: sudo python node-template.py
+
 import os
 import mysql.connector
 from mysql.connector import errorcode
@@ -12,16 +21,17 @@ table_names = []
 column_names = {}
 cnx = None
 
-getDatabaseDetails()
-
 def installPackages():
+
+    #Install necessary packages for API to be launch-ready when script completes
     print("Installing packages...")
     os.system("cd " + project_name + " && sudo npm install")
     os.system("cd " + project_name + " && sudo npm install mysql")
-    #os.system("cd " + project_name + " && node app")
     print("Finished.")
 
 def getAll(table_name):
+
+    #Create route for HTML 'get' to return all columns from all rows in the table
     return ("\n\n// Retrieve all" +
             "\nrouter.get('/', function(req, res) {" +
             "\n\n\tmc.query('SELECT * FROM " + table_name + "', function (error, results, fields) {" +
@@ -32,6 +42,8 @@ def getAll(table_name):
         )
 
 def getSingle(table_name):
+
+    #Create route for HTML 'get' where first column matches given parameter
     column_name = column_names[table_name][0]
     return ("\n\n// Retrieve by first column" +
             "\nrouter.get('/:id', function(req, res) {" +
@@ -44,6 +56,8 @@ def getSingle(table_name):
         )
 
 def getDeletes(table_name):
+
+    #Create route for HTML 'delete' to delete row where first column matches given parameter
     column_name = column_names[table_name][0]
     return ("\n\n// Delete by first column" +
             "\nrouter.delete('/:id', function(req, res) {" +
@@ -56,8 +70,9 @@ def getDeletes(table_name):
         )
 
 def getCreates(table_name):
+
+    #Create route for HTML 'post' to create new row from body JSON
     first_column = column_names[table_name][0]
-    #create set statement
     stmt = ""
     for column_name in column_names[table_name]:
         stmt = stmt + column_name + ": " + column_name + ", "
@@ -72,8 +87,9 @@ def getCreates(table_name):
             "\n});")
 
 def getUpdates(table_name):
+
+    #Create route for HTML 'put' to update existing row based on first column
     first_column = column_names[table_name][0]
-    #create set statement
     stmt = ""
     count = 0
     for column_name in column_names[table_name]:
@@ -91,19 +107,22 @@ def getUpdates(table_name):
             "\n});")
 
 def getLetStatements(table_name):
+
+    #Return assignment statements between HTML body and mysql query items
     toreturn = ""
     for column_name in column_names[table_name]:
         toreturn = toreturn + "\n\tlet " + column_name + " = req.body.data." + column_name + ";"
     return toreturn
 
 def getTablesAndColumns():
+
+    #Connect to database and link column names to table names for later use
     print("Reading Database...")
     cursor = cnx.cursor()
     cursor.execute("SHOW TABLES")
     global table_names
     tables = cursor.fetchall()
     for (table_name,) in tables:
-        print("Creating " + table_name)
         table_names.append(table_name)
         cursor.execute("SHOW columns FROM " + table_name)
         columnsToAdd = []
@@ -111,14 +130,13 @@ def getTablesAndColumns():
         for column in columns:
             columnsToAdd.append(column[0])
         column_names[table_name] = columnsToAdd
-        print(len(columnsToAdd))
-    print(len(table_names))
     
 
 def createRoutes():
+
+    #Create a route file for each table in specified database
     print("Creating routes...")
     print(len(table_names))
-    #print(tables)
     for table_name in table_names:
         print("Creating " + table_name)
         f = open(project_name + "/routes/" + table_name + ".js","w+")
@@ -132,6 +150,8 @@ def createRoutes():
                 "\n\tdatabase: '" + db_name + "'," +
                 "\n});")
         f.write("\n\nmc.connect();")
+        
+        #Create basic CRUD functionality for API
         f.write(getAll(table_name) + "\n\n")
         f.write(getSingle(table_name) + "\n\n")
         f.write(getDeletes(table_name) + "\n\n")
@@ -142,18 +162,24 @@ def createRoutes():
     createApp()
 
 def getRouters():
+
+    #Return routing statements for app.js file
     toreturn = ""
     for table_name in table_names:
         toreturn = toreturn + "\nvar " + table_name + "Router = require('./routes/" + table_name + "');"
     return toreturn
         
 def getUseStatements():
+
+    #Return use statements for app.js file
     toreturn = ""
     for table_name in table_names:
         toreturn = toreturn + "\napp.use('/" + table_name + "', " + table_name + "Router);"
     return toreturn
 
 def createApp():
+
+    #Write a new app.js file using all newly created routes and listen on port 4200
     print("Creating app...")
     f = open(project_name + "/app.js", "w+")
     f.write("var createError = require('http-errors');" +
@@ -192,12 +218,16 @@ def createApp():
     installPackages()
 
 def expressGenerator():
+    
+    #Create an express project using the generator
     global project_name
     project_name = raw_input("What is the project name? ")
     print("Creating express project...")
     os.system("express --view=pug " + project_name)
     print("Modifying express project...")
     path = project_name + "/routes"
+    
+    #Destroy auto-generated files that will be re-written
     os.remove(path + "/users.js")
     os.remove(project_name + "/app.js")
     getTablesAndColumns()
@@ -205,18 +235,17 @@ def expressGenerator():
 
 
 def getDatabaseDetails():
+    
+    #Get database credentials from command line
     global db_user, db_password, db_address, db_name, cnx
-    #Check mysql is running on 3306
-    #db_user = raw_input("What is the database username? ")
-    db_user = "root"
-    #db_password = raw_input("What is the database password? ")
-    db_password = "theenemysgateisdown"
+    db_user = raw_input("What is the database username? ")
+    db_password = raw_input("What is the database password? ")
     db_address = "127.0.0.1"
     input_address = raw_input("What is the database address? (Default: 127.0.0.1) ")
     if input_address: db_address = input_address
-    #db_name = raw_input("What is the database name? ")
-    db_name = "pickem"
-
+    db_name = raw_input("What is the database name? ")
+    
+    #Check mysql is running on 3306
     try:
       cnx = mysql.connector.connect(user=db_user,
                                     password=db_password,
@@ -233,3 +262,5 @@ def getDatabaseDetails():
       else:
         print(err)
 
+#start process
+getDatabaseDetails()
