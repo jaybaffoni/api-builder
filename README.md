@@ -51,7 +51,7 @@ Follow these steps to ensure your API configured properly
 In the command line, navigate into the newly created project folder and run server:
 
 ```
-node app.js
+node app
 ```
 
 ### Check the Browser
